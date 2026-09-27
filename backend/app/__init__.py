@@ -32,8 +32,14 @@ def create_app(config_name: str = None) -> Flask:
     # Configure CORS
     frontend_url_env = app.config.get("FRONTEND_URL", "http://localhost:3000")
     if app.config.get("FLASK_ENV") == "production":
-        # In production, strictly enforce allowed origins from environment variable
-        allowed_origins = [url.strip() for url in frontend_url_env.split(",") if url.strip()]
+        import re
+        raw_origins = [url.strip() for url in frontend_url_env.split(",") if url.strip()]
+        allowed_origins = [o for o in raw_origins if o != "*"]
+        if "*" in raw_origins:
+            allowed_origins = ["*"]
+        else:
+            # Automatically permit Vercel domains (e.g. *.vercel.app)
+            allowed_origins.append(re.compile(r"^https://[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*\.vercel\.app$"))
     else:
         # In development/testing, permit localhost variations alongside configured FRONTEND_URL
         allowed_origins = list({
