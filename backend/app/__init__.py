@@ -9,7 +9,7 @@ from flask import Flask
 from werkzeug.exceptions import HTTPException
 from app.config import config_by_name
 from app.extensions import db, cors
-from app.utils.responses import error_response
+from app.utils.responses import success_response, error_response
 
 
 def create_app(config_name: str = None) -> Flask:
@@ -60,11 +60,32 @@ def create_app(config_name: str = None) -> Flask:
     from app.routes.users import users_bp
     from app.routes.tasks import tasks_bp
     from app.routes.dashboard import dashboard_bp
+    from app.routes.notifications import notifications_bp
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(users_bp, url_prefix="/api/users")
     app.register_blueprint(tasks_bp, url_prefix="/api/tasks")
     app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
+    app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
+
+    @app.route("/")
+    def index():
+        return success_response(
+            data={
+                "service": "hairdrama-task-api",
+                "version": "1.0.0",
+                "status": "online",
+                "endpoints": {
+                    "health": "/api/health",
+                    "auth": "/api/auth",
+                    "tasks": "/api/tasks",
+                    "users": "/api/users",
+                    "dashboard": "/api/dashboard",
+                    "notifications": "/api/notifications",
+                },
+            },
+            message="Hairdrama Task Management API is running",
+        )
 
     # Register global error handlers
     register_error_handlers(app)

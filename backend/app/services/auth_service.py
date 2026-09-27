@@ -6,6 +6,7 @@ Handles Google ID token verification, user upsert logic, and JWT issuance & vali
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 import jwt
+import requests
 from flask import current_app
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -16,6 +17,67 @@ from app.models.user import User
 
 class AuthService:
     """Encapsulates authentication, OAuth verification, and token management."""
+
+    @staticmethod
+    def exchange_code_for_user_info(code: str, redirect_uri: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Exchanges an OAuth 2.0 authorization code for tokens and extracts verified user info.
+        
+        Args:
+            code: The authorization code returned by Google OAuth.
+            redirect_uri: The redirect URI used during the initial authorization request.
+            
+        Returns:
+            Normalized dictionary containing verified user attributes:
+            {'google_id': ..., 'email': ..., 'name': ..., 'profile_image': ...}
+        """
+        client_id = current_app.config.get("GOOGLE_CLIENT_ID")
+        client_secret = current_app.config.get("GOOGLE_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise ValueError("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured in environment.")
+
+        token_endpoint = "https://oauth2.googleapis.com/token"
+        payload = {
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri or current_app.config.get("FRONTEND_URL", "http://localhost:3000"),
+            "grant_type": "authorization_code",
+        }
+        res = requests.post(token_endpoint, data=payload, timeout=10)
+        if not res.ok:
+            error_msg = res.text
+            try:
+                error_data = res.json()
+                error_msg = error_data.get("error_description") or error_data.get("error") or error_msg
+            except Exception:
+                pass
+            raise ValueError(f"Google token exchange failed: {error_msg}")
+
+        token_data = res.json()
+        raw_id_token = token_data.get("id_token")
+        if raw_id_token:
+            return AuthService.verify_google_id_token(raw_id_token)
+
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise ValueError("No id_token or access_token received from Google.")
+
+        userinfo_res = requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10,
+        )
+        if not userinfo_res.ok:
+            raise ValueError("Failed to retrieve user profile from Google.")
+
+        info = userinfo_res.json()
+        return {
+            "google_id": info.get("sub"),
+            "email": info.get("email", "").lower().strip(),
+            "name": info.get("name") or info.get("email", "").split("@")[0],
+            "profile_image": info.get("picture"),
+        }
 
     @staticmethod
     def verify_google_id_token(token_str: str) -> Dict[str, Any]:

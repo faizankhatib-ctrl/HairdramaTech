@@ -189,3 +189,129 @@ class EmailService:
             )
         except Exception as e:
             logger.error(f"Error preparing task completion email: {e}")
+
+    @classmethod
+    def send_test_email(cls, user) -> bool:
+        """
+        Sends a test verification email to the authenticated user.
+        Returns True if successfully queued (runs async in background thread).
+        """
+        if not user or not user.email:
+            return False
+
+        try:
+            frontend_url = current_app.config.get("FRONTEND_URL", "http://localhost:3000")
+
+            html_body = render_template(
+                "emails/test_notification.html",
+                recipient_name=user.name,
+                recipient_email=user.email,
+                frontend_url=frontend_url,
+            )
+
+            subject = "✅ Hairdrama Tech — Email Notifications Working!"
+            plain_text = (
+                f"Hello {user.name},\n\n"
+                f"This is a test notification from the Hairdrama Tech Task Management Application.\n"
+                f"If you received this email, your Gmail SMTP integration is configured correctly!\n\n"
+                f"— Hairdrama Tech\n"
+            )
+
+            cls._dispatch_async(
+                to_email=user.email,
+                subject=subject,
+                html_content=html_body,
+                text_content=plain_text,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error preparing test email: {e}")
+            return False
+
+    @classmethod
+    def send_task_status_update_email(cls, task, recipient, actor, old_status, new_status) -> None:
+        """
+        Sends a notification when a task's status changes (e.g., TODO → IN_PROGRESS).
+        Non-blocking: runs in background thread.
+        """
+        if not recipient or not recipient.email:
+            return
+
+        # Don't send for COMPLETED transitions (handled by send_task_completed_email)
+        if new_status == "COMPLETED":
+            return
+
+        try:
+            frontend_url = current_app.config.get("FRONTEND_URL", "http://localhost:3000")
+            task_url = f"{frontend_url}/dashboard/tasks"
+
+            html_body = render_template(
+                "emails/task_status_update.html",
+                recipient_name=recipient.name,
+                actor_name=actor.name if actor else "A team member",
+                task_title=task.title,
+                task_description=task.description,
+                old_status=old_status,
+                new_status=new_status,
+                task_priority=task.priority,
+                task_url=task_url,
+            )
+
+            subject = f"Task status updated: {task.title} ({old_status} → {new_status})"
+            plain_text = (
+                f"Hello {recipient.name},\n\n"
+                f"{actor.name if actor else 'A team member'} updated the status of '{task.title}'.\n"
+                f"Status changed: {old_status} → {new_status}\n\n"
+                f"View task at: {task_url}\n"
+            )
+
+            cls._dispatch_async(
+                to_email=recipient.email,
+                subject=subject,
+                html_content=html_body,
+                text_content=plain_text,
+            )
+        except Exception as e:
+            logger.error(f"Error preparing task status update email: {e}")
+
+    @classmethod
+    def send_due_date_reminder_email(cls, task, recipient) -> None:
+        """
+        Sends a due-date reminder for tasks approaching their deadline.
+        Non-blocking: runs in background thread.
+        """
+        if not recipient or not recipient.email:
+            return
+
+        try:
+            frontend_url = current_app.config.get("FRONTEND_URL", "http://localhost:3000")
+            task_url = f"{frontend_url}/dashboard/tasks"
+            due_date_str = task.due_date.strftime("%B %d, %Y") if task.due_date else "Not set"
+
+            html_body = render_template(
+                "emails/due_date_reminder.html",
+                recipient_name=recipient.name,
+                task_title=task.title,
+                task_description=task.description,
+                task_priority=task.priority,
+                due_date=due_date_str,
+                task_url=task_url,
+            )
+
+            subject = f"⏰ Reminder: '{task.title}' is due soon ({due_date_str})"
+            plain_text = (
+                f"Hello {recipient.name},\n\n"
+                f"Reminder: Your task '{task.title}' is due on {due_date_str}.\n"
+                f"Priority: {task.priority}\n\n"
+                f"View task at: {task_url}\n"
+            )
+
+            cls._dispatch_async(
+                to_email=recipient.email,
+                subject=subject,
+                html_content=html_body,
+                text_content=plain_text,
+            )
+        except Exception as e:
+            logger.error(f"Error preparing due date reminder email: {e}")
+

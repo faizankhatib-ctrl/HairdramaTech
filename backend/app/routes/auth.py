@@ -27,18 +27,24 @@ def google_auth():
             status_code=400,
         )
 
-    # Google Identity Services sends 'credential', some clients may send 'id_token' or 'token'
+    # Google Identity Services sends 'credential', some clients may send 'id_token', 'token', or 'code'
     token_str = data.get("credential") or data.get("id_token") or data.get("token")
-    if not token_str:
+    code = data.get("code")
+
+    if not token_str and not code:
         return error_response(
-            message="Missing Google ID token. Please provide 'credential' or 'id_token'.",
+            message="Missing Google ID token or authorization code. Please provide 'credential', 'id_token', or 'code'.",
             code="MISSING_TOKEN",
             status_code=400,
         )
 
     try:
-        # Step 1: Verify token server-side using Google's public certificates
-        google_user_info = AuthService.verify_google_id_token(token_str)
+        # Step 1: Verify token server-side or exchange authorization code
+        if code:
+            redirect_uri = data.get("redirect_uri")
+            google_user_info = AuthService.exchange_code_for_user_info(code, redirect_uri)
+        else:
+            google_user_info = AuthService.verify_google_id_token(token_str)
 
         # Step 2: Upsert user in the database (find or create)
         user = AuthService.upsert_user(google_user_info)

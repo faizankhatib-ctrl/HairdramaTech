@@ -250,8 +250,18 @@ class TaskService:
                 task.assigned_to = None
 
         db.session.commit()
-        # Note: Normal PUT /api/tasks/<id> does not trigger emails; dedicated endpoints
-        # (POST /api/tasks, PATCH /assign, PATCH /complete) are the sources of notification events.
+
+        # Trigger email notifications for status transitions (non-COMPLETED; COMPLETED handled by toggle_completion)
+        if "status" in data:
+            new_status_str = task.status
+            old_status_str = "COMPLETED" if was_completed else "TODO"
+            if old_status_str != new_status_str and new_status_str != "COMPLETED":
+                # Notify the other party involved in the task
+                if is_author and task.assignee:
+                    EmailService.send_task_status_update_email(task, task.assignee, current_user, old_status_str, new_status_str)
+                elif is_assignee and task.creator:
+                    EmailService.send_task_status_update_email(task, task.creator, current_user, old_status_str, new_status_str)
+
         return task, None, 200
 
     @staticmethod
