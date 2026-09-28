@@ -28,9 +28,13 @@ class Config:
     
     # Supabase PostgreSQL Database URI
     # Note: Handles legacy 'postgres://' URLs by replacing with 'postgresql://' for SQLAlchemy compatibility
+    # Explicitly uses 'postgresql+psycopg2://' driver to avoid newer SQLAlchemy versions
+    # defaulting to psycopg (v3) which may not be installed.
     raw_db_url = os.environ.get("DATABASE_URL", "")
     if raw_db_url.startswith("postgres://"):
-        raw_db_url = raw_db_url.replace("postgres://", "postgresql://", 1)
+        raw_db_url = raw_db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif raw_db_url.startswith("postgresql://"):
+        raw_db_url = raw_db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     
     # If no DATABASE_URL is configured yet in local environment, default to local SQLite for immediate safety
     instance_dir = basedir / "instance"
