@@ -24,13 +24,14 @@ class Config:
     """Base configuration class with common defaults."""
 
     # Security
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-secret-key-replace-in-production")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-secret-key-replace-in-production").strip()
     
     # Supabase PostgreSQL Database URI
     # Note: Handles legacy 'postgres://' URLs by replacing with 'postgresql://' for SQLAlchemy compatibility
     # Explicitly uses 'postgresql+psycopg2://' driver to avoid newer SQLAlchemy versions
     # defaulting to psycopg (v3) which may not be installed.
-    raw_db_url = os.environ.get("DATABASE_URL", "")
+    # Automatically strips any trailing whitespaces or newlines (common copy-paste issue on Render/cloud envs)
+    raw_db_url = os.environ.get("DATABASE_URL", "").strip()
     if raw_db_url.startswith("postgres://"):
         raw_db_url = raw_db_url.replace("postgres://", "postgresql+psycopg2://", 1)
     elif raw_db_url.startswith("postgresql://"):
@@ -50,23 +51,23 @@ class Config:
     }
 
     # JWT Authentication
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", SECRET_KEY)
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", SECRET_KEY).strip()
     JWT_EXPIRATION_DAYS = int(os.environ.get("JWT_EXPIRATION_DAYS", 7))
 
     # Google OAuth 2.0 Credentials
-    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
 
     # Gmail SMTP Email Notification Configuration
-    MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com").strip()
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
-    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() in ("true", "1", "yes")
-    MAIL_USERNAME = os.environ.get("MAIL_USERNAME") or os.environ.get("GMAIL_USER", "")
-    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD") or os.environ.get("GMAIL_APP_PASSWORD", "")
-    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER") or os.environ.get("MAIL_FROM_NAME", "Hairdrama Tech Tasks")
+    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").strip().lower() in ("true", "1", "yes")
+    MAIL_USERNAME = (os.environ.get("MAIL_USERNAME") or os.environ.get("GMAIL_USER", "")).strip()
+    MAIL_PASSWORD = (os.environ.get("MAIL_PASSWORD") or os.environ.get("GMAIL_APP_PASSWORD", "")).strip()
+    MAIL_DEFAULT_SENDER = (os.environ.get("MAIL_DEFAULT_SENDER") or os.environ.get("MAIL_FROM_NAME", "Hairdrama Tech Tasks")).strip()
 
     # Frontend CORS
-    FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").strip()
 
     # JSON response formatting
     JSON_SORT_KEYS = False
