@@ -39,18 +39,13 @@ def health_check():
         },
     }
 
-    try:
-        if db.engine and hasattr(db.engine, 'url') and db.engine.url:
-            payload["database"]["url"] = db.engine.url.render_as_string(hide_password=True)
-    except Exception as url_err:
-        payload["database"]["url_err"] = str(url_err)
-
     if db_error:
-        payload["database"]["error_details"] = db_error
         try:
             db.session.rollback()
         except Exception:
             pass
+        if current_app.config.get("DEBUG", False):
+            payload["database"]["error_details"] = db_error
 
     return success_response(
         data=payload,
